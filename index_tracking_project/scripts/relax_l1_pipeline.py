@@ -187,12 +187,22 @@ def main() -> None:
         type=Path,
         default=Path(__file__).resolve().parents[1] / "outputs" / "relax_l1_results_table.tex",
     )
+    parser.add_argument(
+        "--cov-output",
+        type=Path,
+        default=Path(__file__).resolve().parents[1] / "outputs" / "covariance.csv",
+    )
+    parser.add_argument(
+        "--beta-output",
+        type=Path,
+        default=Path(__file__).resolve().parents[1] / "outputs" / "beta.csv",
+    )
     parser.add_argument("--jobs", type=int, default=None)
     args = parser.parse_args()
 
-    _, index_returns, stock_returns, _ = load_returns(args.data, pd_module)
-    _ = compute_covariance(stock_returns, np_module)
-    _ = compute_beta(stock_returns, index_returns, np_module)
+    _, index_returns, stock_returns, tickers = load_returns(args.data, pd_module)
+    covariance = compute_covariance(stock_returns, np_module)
+    beta = compute_beta(stock_returns, index_returns, np_module)
     expected_returns = stock_returns.mean(axis=0)
     mu0 = args.mu0 if args.mu0 is not None else float(index_returns.mean())
     lambda2_values = parse_lambda2_grid(args.lambda2_grid)
@@ -216,6 +226,12 @@ def main() -> None:
     )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.cov_output:
+        cov_df = pd_module.DataFrame(covariance, columns=tickers, index=tickers)
+        cov_df.to_csv(args.cov_output)
+    if args.beta_output:
+        beta_df = pd_module.DataFrame({"ticker": tickers, "beta": beta})
+        beta_df.to_csv(args.beta_output, index=False)
     write_results_csv(results, args.output, pd_module)
     write_results_latex(results, args.latex_table)
 
